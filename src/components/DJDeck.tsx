@@ -22,6 +22,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   const [pitch, setPitch] = useState([0]);
   const [youtubeLink, setYoutubeLink] = useState('');
   const [isPlateSpinning, setIsPlateSpinning] = useState(false);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +66,8 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
       playerRef.current.destroy();
     }
 
+    console.log(`Creating new YouTube player for deck ${side} with video ID: ${videoId}`);
+    
     playerRef.current = new window.YT.Player(`youtube-player-${side}`, {
       height: '1',
       width: '1',
@@ -75,13 +78,19 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
         disablekb: 1,
       },
       events: {
-        onReady: () => {
-          console.log('Player ready');
+        onReady: (event: any) => {
+          console.log(`Player ready for deck ${side}`);
+          setIsPlayerReady(true);
+          event.target.setVolume(volume[0]);
           toast.success("Track loaded successfully!");
-          playerRef.current.setVolume(volume[0]);
         },
-        onError: () => {
+        onError: (error: any) => {
+          console.error(`Player error for deck ${side}:`, error);
           toast.error("Error loading video");
+          setIsPlayerReady(false);
+        },
+        onStateChange: (event: any) => {
+          console.log(`Player state changed for deck ${side}:`, event.data);
         }
       }
     });
@@ -93,14 +102,25 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
       return;
     }
 
-    if (isPlaying) {
-      playerRef.current.pauseVideo();
-    } else {
-      playerRef.current.playVideo();
+    if (!isPlayerReady) {
+      toast.error("Player is not ready yet. Please wait a moment.");
+      return;
     }
 
-    setIsPlaying(!isPlaying);
-    setIsPlateSpinning(!isPlateSpinning);
+    console.log(`Attempting to ${isPlaying ? 'pause' : 'play'} video on deck ${side}`);
+    
+    try {
+      if (isPlaying) {
+        playerRef.current.pauseVideo();
+      } else {
+        playerRef.current.playVideo();
+      }
+      setIsPlaying(!isPlaying);
+      setIsPlateSpinning(!isPlateSpinning);
+    } catch (error) {
+      console.error(`Playback error on deck ${side}:`, error);
+      toast.error("Error controlling playback");
+    }
   };
 
   const handlePlateClick = () => {
@@ -108,17 +128,17 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   };
 
   useEffect(() => {
-    if (playerRef.current) {
+    if (playerRef.current && isPlayerReady) {
       playerRef.current.setVolume(volume[0]);
     }
-  }, [volume]);
+  }, [volume, isPlayerReady]);
 
   useEffect(() => {
-    if (playerRef.current) {
+    if (playerRef.current && isPlayerReady) {
       const playbackRate = 1 + (pitch[0] / 100);
       playerRef.current.setPlaybackRate(playbackRate);
     }
-  }, [pitch]);
+  }, [pitch, isPlayerReady]);
 
   return (
     <div className="bg-dj-light p-6 rounded-xl backdrop-blur-lg border border-white/10 shadow-xl transition-all duration-300 hover:shadow-2xl">
