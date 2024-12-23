@@ -36,14 +36,17 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   });
 
   useEffect(() => {
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    // Load YouTube IFrame API
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
-    window.onYouTubeIframeAPIReady = () => {
-      console.log('YouTube API Ready');
-    };
+      window.onYouTubeIframeAPIReady = () => {
+        console.log('YouTube API Ready');
+      };
+    }
   }, []);
 
   const extractVideoId = (url: string) => {
@@ -70,6 +73,10 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
 
     console.log(`Creating new YouTube player for deck ${side} with video ID: ${videoId}`);
     
+    const playerDiv = document.createElement('div');
+    playerDiv.id = `youtube-player-${side}`;
+    document.body.appendChild(playerDiv);
+
     playerRef.current = new window.YT.Player(`youtube-player-${side}`, {
       height: '1',
       width: '1',
@@ -78,12 +85,14 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
         autoplay: 0,
         controls: 0,
         disablekb: 1,
+        origin: window.location.origin,
       },
       events: {
         onReady: (event: any) => {
           console.log(`Player ready for deck ${side}`);
           setIsPlayerReady(true);
           event.target.setVolume(volume[0]);
+          event.target.unMute(); // Ensure the player is not muted
           setTempo(detectTempo(event.target));
           toast.success("Track loaded successfully!");
         },
@@ -94,7 +103,6 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
         },
         onStateChange: (event: any) => {
           console.log(`Player state changed for deck ${side}:`, event.data);
-          // Update tempo when playback state changes
           setTempo(detectTempo(event.target));
         }
       }
@@ -118,6 +126,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
       if (isPlaying) {
         playerRef.current.pauseVideo();
       } else {
+        playerRef.current.unMute(); // Ensure player is unmuted before playing
         playerRef.current.playVideo();
       }
       setIsPlaying(!isPlaying);
@@ -141,6 +150,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   useEffect(() => {
     if (playerRef.current && isPlayerReady) {
       playerRef.current.setVolume(volume[0]);
+      playerRef.current.unMute(); // Ensure volume changes unmute the player
     }
   }, [volume, isPlayerReady]);
 
