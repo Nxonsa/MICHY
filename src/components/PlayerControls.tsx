@@ -16,11 +16,12 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   tempo,
 }) => {
   return (
-    <div className="flex justify-between items-center">
-      <div className="text-dj-text space-x-2">
-        <span className="font-bold">Tempo:</span>
-        <span>{(tempo * 100).toFixed(0)} BPM</span>
-      </div>
+    <div className="flex flex-col items-center gap-4">
+      {tempo > 0 && (
+        <div className="text-dj-text px-4 py-2 rounded-lg bg-dj-dark/80 backdrop-blur-sm">
+          <span className="font-bold">{(tempo * 100).toFixed(0)} BPM</span>
+        </div>
+      )}
       <div className="flex items-center gap-2">
         <Button 
           variant="ghost" 
