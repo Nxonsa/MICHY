@@ -69,10 +69,15 @@ export default {
           "0%": { transform: "translateY(0%)" },
           "100%": { transform: "translateY(100%)" },
         },
+        "spin": {
+          "from": { transform: "rotate(0deg)" },
+          "to": { transform: "rotate(360deg)" },
+        }
       },
       animation: {
         "knob-turn": "knob-turn 0.3s ease-out",
         "fader-slide": "fader-slide 0.3s ease-out",
+        "spin": "spin 2s linear infinite",
       },
     },
   },
