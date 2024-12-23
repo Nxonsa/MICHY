@@ -2,8 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Volume2, Play, Pause, RotateCcw, Disc } from "lucide-react";
+import { Volume2, Disc } from "lucide-react";
 import { toast } from "sonner";
+import { detectTempo } from '@/utils/audioAnalysis';
+import WaveformVisualizer from './WaveformVisualizer';
+import PlayerControls from './PlayerControls';
 
 interface DJDeckProps {
   side: 'left' | 'right';
@@ -23,8 +26,8 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   const [youtubeLink, setYoutubeLink] = useState('');
   const [isPlateSpinning, setIsPlateSpinning] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
+  const [tempo, setTempo] = useState(1);
   const playerRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const [eq, setEq] = useState({
     high: [50],
@@ -33,7 +36,6 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   });
 
   useEffect(() => {
-    // Load YouTube IFrame API
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -82,6 +84,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
           console.log(`Player ready for deck ${side}`);
           setIsPlayerReady(true);
           event.target.setVolume(volume[0]);
+          setTempo(detectTempo(event.target));
           toast.success("Track loaded successfully!");
         },
         onError: (error: any) => {
@@ -91,6 +94,8 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
         },
         onStateChange: (event: any) => {
           console.log(`Player state changed for deck ${side}:`, event.data);
+          // Update tempo when playback state changes
+          setTempo(detectTempo(event.target));
         }
       }
     });
@@ -127,6 +132,12 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
     togglePlayback();
   };
 
+  const handleReset = () => {
+    if (playerRef.current && isPlayerReady) {
+      playerRef.current.seekTo(0);
+    }
+  };
+
   useEffect(() => {
     if (playerRef.current && isPlayerReady) {
       playerRef.current.setVolume(volume[0]);
@@ -137,6 +148,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
     if (playerRef.current && isPlayerReady) {
       const playbackRate = 1 + (pitch[0] / 100);
       playerRef.current.setPlaybackRate(playbackRate);
+      setTempo(detectTempo(playerRef.current));
     }
   }, [pitch, isPlayerReady]);
 
@@ -145,31 +157,15 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h2 className="text-dj-text text-xl font-bold">Deck {side === 'left' ? 'A' : 'B'}</h2>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="w-12 h-12 rounded-full bg-dj-dark hover:bg-dj-accent1 transition-colors duration-300"
-              onClick={togglePlayback}
-            >
-              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="w-12 h-12 rounded-full bg-dj-dark hover:bg-dj-accent2 transition-colors duration-300"
-              onClick={() => {
-                if (playerRef.current) {
-                  playerRef.current.seekTo(0);
-                }
-              }}
-            >
-              <RotateCcw className="h-6 w-6" />
-            </Button>
-          </div>
+          <PlayerControls 
+            isPlaying={isPlaying}
+            onPlayPause={togglePlayback}
+            onReset={handleReset}
+            tempo={tempo}
+          />
         </div>
 
-        <div className="relative flex justify-center items-center py-8">
+        <div className="relative flex flex-col items-center gap-4">
           <div 
             className={`relative w-48 h-48 rounded-full bg-dj-dark flex items-center justify-center cursor-pointer hover:scale-105 transition-transform ${isPlateSpinning ? 'animate-[spin_2s_linear_infinite]' : ''}`}
             onClick={handlePlateClick}
@@ -177,6 +173,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
             <Disc className="w-32 h-32 text-dj-accent1" />
             <div className="absolute inset-0 rounded-full border-4 border-dj-accent2 opacity-20"></div>
           </div>
+          <WaveformVisualizer isPlaying={isPlaying} player={playerRef.current} />
         </div>
 
         <div id={`youtube-player-${side}`} style={{ display: 'none' }}></div>
