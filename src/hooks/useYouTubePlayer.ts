@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from "sonner";
 import { detectTempo } from '@/utils/audioAnalysis';
 
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 export const useYouTubePlayer = (side: 'left' | 'right', volume: number[]) => {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);

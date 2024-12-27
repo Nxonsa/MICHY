@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Slider } from "@/components/ui/slider";
 import { Volume2, Disc } from "lucide-react";
+import { toast } from "sonner";
 import WaveformVisualizer from './WaveformVisualizer';
 import PlayerControls from './PlayerControls';
 import YouTubeControls from './YouTubeControls';
