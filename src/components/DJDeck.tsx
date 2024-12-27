@@ -1,113 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Volume2, Disc } from "lucide-react";
-import { toast } from "sonner";
-import { detectTempo } from '@/utils/audioAnalysis';
 import WaveformVisualizer from './WaveformVisualizer';
 import PlayerControls from './PlayerControls';
+import YouTubeControls from './YouTubeControls';
+import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 
 interface DJDeckProps {
   side: 'left' | 'right';
 }
 
-declare global {
-  interface Window {
-    YT: any;
-    onYouTubeIframeAPIReady: () => void;
-  }
-}
-
 const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState([75]);
   const [pitch, setPitch] = useState([0]);
-  const [youtubeLink, setYoutubeLink] = useState('');
   const [isPlateSpinning, setIsPlateSpinning] = useState(false);
-  const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const [tempo, setTempo] = useState(1);
-  const playerRef = useRef<any>(null);
-
   const [eq, setEq] = useState({
     high: [50],
     mid: [50],
     low: [50],
   });
 
-  useEffect(() => {
-    // Load YouTube IFrame API
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-
-      window.onYouTubeIframeAPIReady = () => {
-        console.log('YouTube API Ready');
-      };
-    }
-  }, []);
-
-  const extractVideoId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
-  };
-
-  const handleYoutubeLinkSubmit = () => {
-    if (!youtubeLink) {
-      toast.error("Please enter a YouTube link");
-      return;
-    }
-
-    const videoId = extractVideoId(youtubeLink);
-    if (!videoId) {
-      toast.error("Invalid YouTube link");
-      return;
-    }
-
-    if (playerRef.current) {
-      playerRef.current.destroy();
-    }
-
-    console.log(`Creating new YouTube player for deck ${side} with video ID: ${videoId}`);
-    
-    const playerDiv = document.createElement('div');
-    playerDiv.id = `youtube-player-${side}`;
-    document.body.appendChild(playerDiv);
-
-    playerRef.current = new window.YT.Player(`youtube-player-${side}`, {
-      height: '1',
-      width: '1',
-      videoId: videoId,
-      playerVars: {
-        autoplay: 0,
-        controls: 0,
-        disablekb: 1,
-        origin: window.location.origin,
-      },
-      events: {
-        onReady: (event: any) => {
-          console.log(`Player ready for deck ${side}`);
-          setIsPlayerReady(true);
-          event.target.setVolume(volume[0]);
-          event.target.unMute(); // Ensure the player is not muted
-          setTempo(detectTempo(event.target));
-          toast.success("Track loaded successfully!");
-        },
-        onError: (error: any) => {
-          console.error(`Player error for deck ${side}:`, error);
-          toast.error("Error loading video");
-          setIsPlayerReady(false);
-        },
-        onStateChange: (event: any) => {
-          console.log(`Player state changed for deck ${side}:`, event.data);
-          setTempo(detectTempo(event.target));
-        }
-      }
-    });
-  };
+  const {
+    playerRef,
+    isPlayerReady,
+    isPlaying,
+    setIsPlaying,
+    tempo,
+    createPlayer,
+  } = useYouTubePlayer(side, volume);
 
   const togglePlayback = () => {
     if (!playerRef.current) {
@@ -126,7 +46,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
       if (isPlaying) {
         playerRef.current.pauseVideo();
       } else {
-        playerRef.current.unMute(); // Ensure player is unmuted before playing
+        playerRef.current.unMute();
         playerRef.current.playVideo();
       }
       setIsPlaying(!isPlaying);
@@ -150,7 +70,7 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
   useEffect(() => {
     if (playerRef.current && isPlayerReady) {
       playerRef.current.setVolume(volume[0]);
-      playerRef.current.unMute(); // Ensure volume changes unmute the player
+      playerRef.current.unMute();
     }
   }, [volume, isPlayerReady]);
 
@@ -158,7 +78,6 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
     if (playerRef.current && isPlayerReady) {
       const playbackRate = 1 + (pitch[0] / 100);
       playerRef.current.setPlaybackRate(playbackRate);
-      setTempo(detectTempo(playerRef.current));
     }
   }, [pitch, isPlayerReady]);
 
@@ -186,25 +105,9 @@ const DJDeck: React.FC<DJDeckProps> = ({ side }) => {
           <WaveformVisualizer isPlaying={isPlaying} player={playerRef.current} />
         </div>
 
-        <div id={`youtube-player-${side}`} style={{ display: 'none' }}></div>
+        <YouTubeControls onLoadVideo={createPlayer} />
 
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder="Paste YouTube link..."
-              value={youtubeLink}
-              onChange={(e) => setYoutubeLink(e.target.value)}
-              className="flex-1 bg-dj-dark text-dj-text border-dj-accent1/20 focus:border-dj-accent1"
-            />
-            <Button 
-              onClick={handleYoutubeLinkSubmit}
-              className="bg-dj-accent1 hover:bg-dj-accent1/80"
-            >
-              Load
-            </Button>
-          </div>
-
           <div className="flex items-center gap-4">
             <Volume2 className="h-5 w-5 text-dj-text" />
             <Slider
